@@ -1,3 +1,11 @@
+Package["WolframInstitute`InfraAnalysis`"]
+
+PackageExport[GraphSources]
+PackageExport[GraphSinks]
+PackageExport[DirectedPathGraph]
+PackageExport[ConeGraph]
+
+
 GraphSources[ graph_Graph ] :=
 	Pick[ VertexList @ graph, VertexInDegree @ graph, 0 ]
 

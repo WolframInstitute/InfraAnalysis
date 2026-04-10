@@ -1,3 +1,14 @@
+Package["WolframInstitute`InfraAnalysis`"]
+
+PackageExport[RadialExpansion]
+PackageExport[RadialBlowUp]
+PackageExport[LaminarBlowUp]
+PackageExport[LaminarExpansion]
+PackageExport[Graph3DUnion]
+PackageExport[BlowUpGraph]
+PackageExport[ContractGraph]
+
+
 (* --- RadialExpansion --- *)
 
 Options[ RadialExpansion ] = Join[ Options[ Graph ], { "Connectivity" -> 1 } ];

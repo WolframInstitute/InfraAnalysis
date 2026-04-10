@@ -1,3 +1,9 @@
+Package["WolframInstitute`InfraAnalysis`"]
+
+PackageExport[RadialView]
+PackageExport[LaminalView]
+
+
 (* --- RadialView --- *)
 
 Options[ RadialView ] = {

@@ -1,3 +1,16 @@
+Package["WolframInstitute`InfraAnalysis`"]
+
+PackageExport[GraphIntegral]
+PackageExport[GraphIntegration]
+PackageExport[GraphIntegrationGeneral]
+PackageExport[GraphMobiusFunction]
+PackageExport[GraphZetaFunction]
+PackageExport[MobiusInversionTheorem]
+PackageExport[GraphDerivation]
+PackageExport[GraphFiniteDifference]
+PackageExport[GraphFundamentalTheorem]
+
+
 (* ===== Integration ===== *)
 
 (* Integral of f over predecessors of vertex a in g *)

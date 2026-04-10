@@ -1,3 +1,9 @@
+Package["WolframInstitute`InfraAnalysis`"]
+
+PackageExport[FunctionGraph]
+PackageExport[ThickFunctionGraph]
+
+
 Options[ FunctionGraph ] = {
 	"EdgeLengthScaling" -> "Proportional",
 	"MinimalEdgeLength" -> None

@@ -1,3 +1,9 @@
+Package["WolframInstitute`InfraAnalysis`"]
+
+PackageExport[LaminarDecomposition]
+PackageExport[LayerDAGBySources]
+
+
 Options[ LaminarDecomposition ] = {
 	"Direction" -> Automatic,
 	"StructuredOutput" -> False
