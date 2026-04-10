@@ -6,10 +6,6 @@ GraphSinks::usage = "GraphSinks[ g ] returns the sink vertices (out-degree 0) of
 DirectedPathGraph::usage = "DirectedPathGraph[ n ] creates a directed path on n vertices.";
 ConeGraph::usage = "ConeGraph[ g ] adds a cone vertex connected to all vertices of g.";
 
-(* --- Function graphs --- *)
-FunctionGraph::usage = "FunctionGraph[ f, domain ] creates a directed path graph with f-values as vertex labels.";
-ThickFunctionGraph::usage = "ThickFunctionGraph[ g, diskSpec ] thickens a function graph by blowing up each vertex.";
-
 (* --- Decomposition --- *)
 LaminarDecomposition::usage = "LaminarDecomposition[ g ] decomposes a directed graph into radial and laminar subgraphs.";
 LayerDAGBySources::usage = "LayerDAGBySources[ g ] layers a DAG by minimal distance from sources.";
@@ -17,15 +13,8 @@ LayerDAGBySources::usage = "LayerDAGBySources[ g ] layers a DAG by minimal dista
 (* --- Blow-up and contraction --- *)
 RadialExpansion::usage = "RadialExpansion[ g, layers ] adds concentric radial layers to a graph.";
 RadialBlowUp::usage = "RadialBlowUp[ g, layerCounts ] organizes a DAG into concentric layers with edges toward sinks.";
-LaminarBlowUp::usage = "LaminarBlowUp[ g, layerCounts ] laminar blow-up with radial structure per layer.";
-LaminarExpansion::usage = "LaminarExpansion[ g, radialLayers ] expands a graph with laminar and radial structure.";
 BlowUpGraph::usage = "BlowUpGraph[ g, rules ] blows up vertices according to subgraph replacement rules.";
 ContractGraph::usage = "ContractGraph[ g ] contracts a blown-up graph back to the original vertices.";
-Graph3DUnion::usage = "Graph3DUnion[ gs ] creates a 3D union of graphs with offset coordinates.";
-
-(* --- Visualization --- *)
-RadialView::usage = "RadialView[ g ] arranges vertices in concentric circles by RadialDistance.";
-LaminalView::usage = "LaminalView[ g ] arranges vertices in layers by LaminarDistance.";
 
 (* --- Calculus: Integration --- *)
 GraphIntegral::usage = "GraphIntegral[ g, f, a ] computes the integral of f over predecessors of a in g.";
