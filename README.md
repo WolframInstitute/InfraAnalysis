@@ -2,6 +2,11 @@
 
 Wolfram Language paclet for analysis on directed graphs: integration, derivative, coordinatization, and renormalization.
 
+
+- What structure on the space of functions on vertices represents the geometry contained in the graph, from which structure the graph can be reconstructed
+
+
+
 ## Installation
 
 ```wolfram

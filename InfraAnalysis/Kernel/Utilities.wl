@@ -2,8 +2,11 @@ Package["WolframInstitute`InfraAnalysis`"]
 
 PackageExport[GraphSources]
 PackageExport[GraphSinks]
-PackageExport[DirectedPathGraph]
+PackageExport[DirectedPath]
 PackageExport[ConeGraph]
+
+PackageScope[AnnotateGraph]
+PackageScope[ExtractVertexValues]
 
 
 GraphSources[ graph_Graph ] :=
@@ -12,7 +15,7 @@ GraphSources[ graph_Graph ] :=
 GraphSinks[ graph_Graph ] :=
 	Pick[ VertexList @ graph, VertexOutDegree @ graph, 0 ]
 
-DirectedPathGraph[ n_Integer ] :=
+DirectedPath[ n_Integer ] :=
 	Graph[ Range[ n ], DirectedEdge @@@ Partition[ Range[ n ], 2, 1 ] ]
 
 ConeGraph[ graph_Graph, vertex_ ] :=
@@ -20,3 +23,19 @@ ConeGraph[ graph_Graph, vertex_ ] :=
 
 ConeGraph[ graph_Graph ] :=
 	ConeGraph[ graph, Unique[ ] ]
+
+
+AnnotateGraph[ graph_Graph, values_Association ] :=
+	Module[ { vertices },
+		vertices = VertexList[ graph ];
+		Graph[ vertices, EdgeList[ graph ],
+			VertexLabels -> Normal[ values ],
+			VertexCoordinates -> Normal[ AssociationThread[ vertices, AnnotationValue[ { graph, # }, VertexCoordinates ] & /@ vertices ] ],
+			EdgeStyle -> AnnotationValue[ graph, EdgeStyle ],
+			VertexSize -> AnnotationValue[ graph, VertexSize ],
+			DirectedEdges -> True
+		]
+	]
+
+ExtractVertexValues[ graph_Graph ] :=
+	AssociationThread[ VertexList[ graph ], AnnotationValue[ { graph, # }, VertexLabels ] & /@ VertexList[ graph ] ]

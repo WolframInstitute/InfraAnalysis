@@ -1,19 +1,57 @@
 Package["WolframInstitute`InfraAnalysis`"]
 
+PackageExport[GraphIntegrate]
+PackageExport[GraphDerivative]
 PackageExport[GraphIntegral]
-PackageExport[GraphIntegration]
-PackageExport[GraphIntegrationGeneral]
 PackageExport[GraphMobiusFunction]
-PackageExport[GraphZetaFunction]
-PackageExport[MobiusInversionTheorem]
-PackageExport[GraphDerivation]
-PackageExport[GraphFiniteDifference]
+PackageExport[GraphZetaConvolution]
+PackageExport[GraphMobiusInversion]
 PackageExport[GraphFundamentalTheorem]
 
+PackageScope[GraphIntegrateValues]
+PackageScope[GraphDerivativeValues]
 
-(* ===== Integration ===== *)
 
-(* Integral of f over predecessors of vertex a in g *)
+Options[ GraphIntegrate ] = { Method -> "Ordered" };
+
+GraphIntegrate[ graph_Graph, f_Association, opts : OptionsPattern[] ] :=
+	AnnotateGraph[ graph, GraphIntegrateValues[ graph, f, OptionValue[ Method ] ] ]
+
+GraphIntegrate[ graph_Graph, f_Association, vertex_, opts : OptionsPattern[] ] :=
+	GraphIntegral[ graph, f, vertex ]
+
+GraphIntegrate[ graph_Graph, f_Association, sources_List, sinks_List, opts : OptionsPattern[] ] :=
+	GraphIntegral[ graph, f, sources, sinks ]
+
+GraphIntegrate[ graph_Graph, opts : OptionsPattern[] ] :=
+	GraphIntegrate[ graph, ExtractVertexValues[ graph ], opts ]
+
+
+Options[ GraphDerivative ] = { Method -> "Ordered", "VectorField" -> None, "Weight" -> 1 };
+
+GraphDerivative[ graph_Graph, f_Association, opts : OptionsPattern[] ] :=
+	AnnotateGraph[ graph,
+		GraphDerivativeValues[ graph, f,
+			OptionValue[ Method ], OptionValue[ "VectorField" ], OptionValue[ "Weight" ] ]
+	]
+
+GraphDerivative[ graph_Graph, opts : OptionsPattern[] ] :=
+	GraphDerivative[ graph, ExtractVertexValues[ graph ], opts ]
+
+
+Options[ GraphFundamentalTheorem ] = { Method -> All };
+
+GraphFundamentalTheorem[ graph_Graph, f_Association, opts : OptionsPattern[] ] :=
+	Module[ { methods, results },
+		methods = Flatten @ { Replace[ OptionValue[ Method ], All -> { "Ordered", "Cumulative", "Conservative", "Laminar" } ] };
+		results = AssociationMap[
+			m |-> GraphDerivativeValues[ graph, GraphIntegrateValues[ graph, f, m ], m, None, 1 ] === f,
+			methods
+		];
+		If[ Length[ methods ] == 1, First[ results ], results ]
+	]
+
+
 GraphIntegral[ graph_Graph, f_Association, vertex_ ] :=
 	Total @ Lookup[ f, VertexInComponent[ graph, { vertex }, Infinity ] ]
 
@@ -23,98 +61,50 @@ GraphIntegral[ graph_Graph, f_Association, sources_List, sinks_List ] :=
 GraphIntegral[ graph_Graph, f_Association, sources_List ] :=
 	GraphIntegral[ graph, f, sources, GraphSinks[ graph ] ]
 
-(* Cumulative integration along topological order *)
-GraphIntegration[ graph_Graph ] :=
-	GraphIntegration[ graph, Association @ AnnotationValue[ graph, VertexLabels ] ]
-
-GraphIntegration[ graph_Graph, f_Association ] :=
-	Module[
-		{ vertices, ordering, values, coords, edgeStyle, vertexSize },
-
-		vertices = VertexList[ graph ];
-		ordering = TopologicalSort[ graph ];
-
-		values = Fold[
-			{ acc, vertex } |-> Append[ acc, vertex -> ( Lookup[ f, vertex, 0 ] + Total[ Lookup[ acc, #, 0 ] & /@ VertexInComponent[ graph, vertex, { 1 } ] ] ) ],
-			Association[ ],
-			ordering
-		];
-
-		coords = Association[ Thread[ vertices -> ( AnnotationValue[ { graph, # }, VertexCoordinates ] & /@ vertices ) ] ];
-		edgeStyle = AnnotationValue[ graph, EdgeStyle ];
-		vertexSize = AnnotationValue[ graph, VertexSize ];
-		Graph[ vertices, EdgeList[ graph ],
-			VertexLabels -> Normal[ values ],
-			VertexCoordinates -> Normal[ coords ],
-			EdgeStyle -> edgeStyle,
-			VertexSize -> vertexSize,
-			DirectedEdges -> True
-		]
-	]
-
-(* General integration via full reachability *)
-GraphIntegrationGeneral[ graph_Graph ] :=
-	GraphIntegrationGeneral[ graph, AssociationThread[ VertexList[ graph ], AnnotationValue[ { graph, # }, VertexLabels ] & /@ VertexList[ graph ] ] ]
-
-GraphIntegrationGeneral[ graph_Graph, f_Association ] :=
-	Module[
-		{ vertices, values, coords, edgeStyle, vertexSize },
-		vertices = VertexList[ graph ];
-		values = AssociationMap[
-			vertex |-> Total[ Lookup[ f, #, 0 ] & /@ Select[ vertices, u |-> MemberQ[ VertexOutComponent[ graph, u ], vertex ] || u == vertex ] ],
-			vertices
-		];
-		coords = Association[ Thread[ vertices -> ( AnnotationValue[ { graph, # }, VertexCoordinates ] & /@ vertices ) ] ];
-		edgeStyle = AnnotationValue[ graph, EdgeStyle ];
-		vertexSize = AnnotationValue[ graph, VertexSize ];
-		Graph[ vertices, EdgeList[ graph ],
-			VertexLabels -> Normal[ values ],
-			VertexCoordinates -> Normal[ coords ],
-			EdgeStyle -> edgeStyle,
-			VertexSize -> vertexSize,
-			DirectedEdges -> True
-		]
-	]
-
-(* ===== Incidence Algebra ===== *)
 
 GraphMobiusFunction[ graph_Graph ] :=
-	Module[
-		{ ordering, n, reachable, computeMobius },
+	Module[ { ordering, n, successorSets, predecessorSets, mobius },
 		ordering = TopologicalSort[ graph ];
 		n = Length[ ordering ];
-		reachable = AssociationMap[
-			i |-> ( Position[ ordering, # ][[ 1, 1 ]] & /@ VertexOutComponent[ graph, ordering[[ i ]] ] ),
-			Range[ n ]
+		successorSets = AssociationMap[
+			v |-> Association[ Thread[ VertexOutComponent[ graph, v ] -> True ] ],
+			ordering
 		];
-		computeMobius = Fold[
-			Function[ { mobius, i },
-				Fold[
-					Function[ { m, j },
-						If[ j > i,
-							Append[ m, { i, j } -> -Total[ m[[ Key[ { i, # } ] ]] & /@ Select[ Range[ i, j - 1 ], k |-> MemberQ[ reachable[ i ], k ] && MemberQ[ reachable[ k ], j ] ] ] ],
-							m
+		predecessorSets = AssociationMap[
+			v |-> Association[ Thread[ VertexInComponent[ graph, v ] -> True ] ],
+			ordering
+		];
+		mobius = Association[];
+		Do[
+			With[ { vi = ordering[[ i ]] },
+				mobius[ { vi, vi } ] = 1;
+				Do[
+					With[ { vj = ordering[[ j ]] },
+						If[ TrueQ @ successorSets[ vi ][ vj ],
+							mobius[ { vi, vj } ] = -Total[
+								Lookup[ mobius, Key[ { vi, # } ], 0 ] & /@
+									Select[ Keys @ predecessorSets[ vj ],
+										z |-> z =!= vj && TrueQ @ successorSets[ vi ][ z ]
+									]
+							]
 						]
 					],
-					mobius,
-					Sort[ reachable[ i ] ]
+					{ j, i + 1, n }
 				]
 			],
-			Association[ Thread[ Table[ { i, i }, { i, n } ] -> 1 ] ],
-			Range[ n ]
+			{ i, n }
 		];
-		Association[ Flatten[ Table[ { ordering[[ i ]], ordering[[ j ]] } -> Lookup[ computeMobius, Key[ { i, j } ], 0 ], { i, n }, { j, n } ] ] ]
+		mobius
 	]
 
-GraphZetaFunction[ graph_Graph, f_Association ] :=
+GraphZetaConvolution[ graph_Graph, f_Association ] :=
 	AssociationMap[
 		vertex |-> Total[ Lookup[ f, #, 0 ] & /@ VertexInComponent[ graph, vertex ] ],
 		VertexList[ graph ]
 	]
 
-MobiusInversionTheorem[ graph_Graph, f_Association ] :=
-	Module[
-		{ mobius, vertices },
+GraphMobiusInversion[ graph_Graph, f_Association ] :=
+	Module[ { mobius, vertices },
 		mobius = GraphMobiusFunction[ graph ];
 		vertices = VertexList[ graph ];
 		AssociationMap[
@@ -123,62 +113,73 @@ MobiusInversionTheorem[ graph_Graph, f_Association ] :=
 		]
 	]
 
-(* ===== Derivative ===== *)
 
-(* Non-local derivative via Moebius inversion *)
-GraphDerivation[ graph_Graph, f_Association ] :=
-	Module[
-		{ mobius, vertices, values, coords, edgeStyle, vertexSize },
-		mobius = GraphMobiusFunction[ graph ];
-		vertices = VertexList[ graph ];
-		values = AssociationMap[
-			vertex |-> Total[ ( Lookup[ mobius, Key[ { #, vertex } ], 0 ] * Lookup[ f, #, 0 ] ) & /@ VertexInComponent[ graph, vertex ] ],
-			vertices
-		];
-		coords = Association[ Thread[ vertices -> ( AnnotationValue[ { graph, # }, VertexCoordinates ] & /@ vertices ) ] ];
-		edgeStyle = AnnotationValue[ graph, EdgeStyle ];
-		vertexSize = AnnotationValue[ graph, VertexSize ];
-		Graph[ vertices, EdgeList[ graph ],
-			VertexLabels -> Normal[ values ],
-			VertexCoordinates -> Normal[ coords ],
-			EdgeStyle -> edgeStyle,
-			VertexSize -> vertexSize,
-			DirectedEdges -> True
-		]
+GraphIntegrateValues[ graph_Graph, f_Association, method_String ] :=
+	Switch[ method,
+		"Ordered",      GraphZetaConvolution[ graph, f ],
+		"Cumulative",   cumulativeIntegration[ graph, f ],
+		"Conservative", conservativeIntegration[ graph, f ],
+		"Laminar",      laminarIntegration[ graph, f ],
+		_,              GraphZetaConvolution[ graph, f ]
 	]
 
-GraphDerivation[ graph_Graph ] :=
-	GraphDerivation[ graph, AssociationThread[ VertexList[ graph ], AnnotationValue[ { graph, # }, VertexLabels ] & /@ VertexList[ graph ] ] ]
-
-(* Local finite difference *)
-GraphFiniteDifference[ graph_Graph, f_Association ] :=
-	Module[
-		{ values, coords, edgeStyle, vertexSize },
-		values = AssociationMap[
-			vertex |-> Lookup[ f, vertex, 0 ] - Total[ Lookup[ f, #, 0 ] & /@ VertexInComponent[ graph, vertex, { 1 } ] ],
-			VertexList[ graph ]
-		];
-		coords = Association[ Thread[ VertexList[ graph ] -> ( AnnotationValue[ { graph, # }, VertexCoordinates ] & /@ VertexList[ graph ] ) ] ];
-		edgeStyle = AnnotationValue[ graph, EdgeStyle ];
-		vertexSize = AnnotationValue[ graph, VertexSize ];
-		Graph[ VertexList[ graph ], EdgeList[ graph ],
-			VertexLabels -> Normal[ values ],
-			VertexCoordinates -> Normal[ coords ],
-			EdgeStyle -> edgeStyle,
-			VertexSize -> vertexSize,
-			DirectedEdges -> True
-		]
+GraphDerivativeValues[ graph_Graph, f_Association, method_String, vectorField_ : None, weight_ : 1 ] :=
+	Switch[ method,
+		"Ordered",      GraphMobiusInversion[ graph, f ],
+		"Cumulative",   GraphFiniteDifference[ graph, f ],
+		"Conservative", conservativeDerivative[ graph, f ],
+		"Laminar",      laminarDerivative[ graph, f ],
+		"Directional",  GraphDirectionalDifference[ graph, vectorField, f ],
+		"Weighted",     GraphWeightedDerivation[ graph, vectorField, f, weight ],
+		_,              GraphMobiusInversion[ graph, f ]
 	]
 
-GraphFiniteDifference[ graph_Graph ] :=
-	GraphFiniteDifference[ graph, AssociationThread[ VertexList[ graph ], AnnotationValue[ { graph, # }, VertexLabels ] & /@ VertexList[ graph ] ] ]
 
-(* ===== Fundamental Theorem ===== *)
+cumulativeIntegration[ graph_Graph, f_Association ] :=
+	Fold[
+		{ acc, vertex } |-> Append[ acc,
+			vertex -> ( Lookup[ f, vertex, 0 ] + Total[ Lookup[ acc, #, 0 ] & /@ VertexInComponent[ graph, vertex, { 1 } ] ] )
+		],
+		Association[],
+		TopologicalSort[ graph ]
+	]
 
-GraphFundamentalTheorem[ graph_Graph, f_Association ] :=
-	Module[
-		{ integratedVals, derivedVals },
-		integratedVals = GraphZetaFunction[ graph, f ];
-		derivedVals = MobiusInversionTheorem[ graph, integratedVals ];
-		derivedVals === f
+conservativeIntegration[ graph_Graph, f_Association ] :=
+	Fold[
+		{ acc, vertex } |-> Append[ acc,
+			vertex -> ( Lookup[ f, vertex, 0 ] + Total[ Lookup[ acc, #, 0 ] / VertexOutDegree[ graph, # ] & /@ VertexInComponent[ graph, vertex, { 1 } ] ] )
+		],
+		Association[],
+		TopologicalSort[ graph ]
+	]
+
+conservativeDerivative[ graph_Graph, f_Association ] :=
+	AssociationMap[
+		vertex |-> Lookup[ f, vertex, 0 ] - Total[ Lookup[ f, #, 0 ] / VertexOutDegree[ graph, # ] & /@ VertexInComponent[ graph, vertex, { 1 } ] ],
+		VertexList[ graph ]
+	]
+
+laminarIntegration[ graph_Graph, f_Association ] :=
+	laminarIntegration[ graph, f,
+		LaminarDecomposition[ graph, "StructuredOutput" -> True ][ "LayeredVertices" ]
+	]
+
+laminarIntegration[ graph_Graph, f_Association, layers_Association ] :=
+	Fold[
+		{ acc, vertex } |-> Append[ acc,
+			vertex -> ( Lookup[ f, vertex, 0 ] + Total[ Lookup[ acc, #, 0 ] & /@ Select[ VertexInComponent[ graph, vertex, { 1 } ], u |-> layers[ u ] =!= layers[ vertex ] ] ] )
+		],
+		Association[],
+		TopologicalSort[ graph ]
+	]
+
+laminarDerivative[ graph_Graph, f_Association ] :=
+	laminarDerivative[ graph, f,
+		LaminarDecomposition[ graph, "StructuredOutput" -> True ][ "LayeredVertices" ]
+	]
+
+laminarDerivative[ graph_Graph, f_Association, layers_Association ] :=
+	AssociationMap[
+		vertex |-> Lookup[ f, vertex, 0 ] - Total[ Lookup[ f, #, 0 ] & /@ Select[ VertexInComponent[ graph, vertex, { 1 } ], u |-> layers[ u ] =!= layers[ vertex ] ] ],
+		VertexList[ graph ]
 	]
