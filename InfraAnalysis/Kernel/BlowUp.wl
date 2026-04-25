@@ -1,9 +1,8 @@
 Package["WolframInstitute`InfraAnalysis`"]
 
 PackageExport[RadialExpansion]
-PackageExport[RadialBlowUp]
-PackageExport[BlowUpGraph]
-PackageExport[ContractGraph]
+PackageExport[GraphBlowUp]
+PackageExport[GraphContract]
 
 
 (* --- RadialExpansion --- *)
@@ -34,334 +33,84 @@ RadialExpansion[ graph_Graph, layers_List, opts : OptionsPattern[ ] ] :=
 		Graph[ VertexList @ graph, Join[ EdgeList @ graph, Flatten[ newEdges, 1 ] ], graphOpts ]
 	]
 
-(* --- RadialBlowUp --- *)
 
-Options[ RadialBlowUp ] = {
-	"Distribution" -> "Uniform",
-	"Connectivity" -> "Medium",
-	"IntraConnectivity" -> "NearestNeighbor"
-};
+(* --- GraphBlowUp --- *)
 
-RadialBlowUp[ graph_Graph, layerCounts_List, opts : OptionsPattern[ ] ] :=
-	Module[
-		{ distribution, connectivity, intraConnectivity, connectivityFactor, sources,
-		  n, layers, allVertices, totalValue, totalVertices, allLabels, allEdges, radialDistances },
-
-		distribution = OptionValue[ "Distribution" ];
-		connectivity = OptionValue[ "Connectivity" ];
-		intraConnectivity = OptionValue[ "IntraConnectivity" ];
-		connectivityFactor = Switch[ connectivity, "Low", 0.3, "Medium", 0.6, "High", 0.9, _, 0.6 ];
-
-		sources = GraphSources[ graph ];
-		totalValue = Total[ AnnotationValue[ { graph, # }, VertexLabels ] & /@ VertexList[ graph ] /. Missing[ _ ] -> 0 ];
-		n = Length[ layerCounts ];
-
-		layers = Table[ Table[ { "Layer", i, j }, { j, layerCounts[[ i ]] } ], { i, n } ];
-		allVertices = Join[ sources, Flatten[ layers ] ];
-		totalVertices = Length[ allVertices ];
-
-		radialDistances = Association[
-			Sequence @@ Thread[ sources -> ConstantArray[ 0, Length[ sources ] ] ],
-			Sequence @@ Flatten @ Table[
-				Table[ layers[[ i, j ]] -> n - i + 1, { j, layerCounts[[ i ]] } ],
-				{ i, n }
-			]
-		];
-
-		allLabels = Association[
-			Sequence @@ Table[
-				sink -> Switch[ distribution,
-					"Gaussian", totalValue / Length[ sources ],
-					"Uniform", totalValue / totalVertices,
-					"Random", RandomReal[ { 0, totalValue } ],
-					_, totalValue / Length[ sources ]
-				],
-				{ sink, sources }
-			],
-			Sequence @@ Flatten @ Table[
-				Module[ { dist, value },
-					dist = ( n - i + 1 ) / n;
-					value = Switch[ distribution,
-						"Gaussian", ( totalValue / totalVertices ) * Exp[ -( 1 - dist )^2 / 0.2 ],
-						"Uniform", totalValue / totalVertices,
-						"Random", RandomReal[ { 0, totalValue / n } ],
-						_, 0
-					];
-					Table[ layers[[ i, j ]] -> value, { j, layerCounts[[ i ]] } ]
-				],
-				{ i, n }
-			]
-		];
-
-		allEdges = Join[
-			Which[
-				intraConnectivity == "None", { },
-				intraConnectivity == "Full",
-					Flatten @ Table[
-						Flatten @ Table[
-							DirectedEdge[ layers[[ i, j ]], layers[[ i, k ]] ],
-							{ j, layerCounts[[ i ]] }, { k, layerCounts[[ i ]] }
-						],
-						{ i, n }
-					],
-				True,
-					Flatten @ Table[
-						Table[
-							UndirectedEdge[ layers[[ i, j ]], layers[[ i, Mod[ j, layerCounts[[ i ]] ] + 1 ]] ],
-							{ j, layerCounts[[ i ]] }
-						],
-						{ i, n }
-					]
-			],
-			Flatten @ Table[
-				Module[ { outer, inner, guaranteed, extra },
-					outer = layers[[ i ]];
-					inner = If[ i == n, sources, layers[[ i + 1 ]] ];
-					guaranteed = Table[ DirectedEdge[ vertex, RandomChoice[ inner ] ], { vertex, outer } ];
-					extra = Table[
-						DirectedEdge[ RandomChoice[ outer ], RandomChoice[ inner ] ],
-						{ Round[ connectivityFactor * Length[ outer ] * Length[ inner ] ] }
-					];
-					DeleteDuplicates @ Join[ guaranteed, extra ]
-				],
-				{ i, n }
-			]
-		];
-
-		Module[ { result },
-			result = Graph[ allVertices, allEdges, VertexLabels -> allLabels ];
-			Scan[ vertex |-> ( result = Annotate[ result, { vertex, "RadialDistance" -> radialDistances[ vertex ] } ] ), allVertices ];
-			result
-		]
-	]
-
-(* --- BlowUpGraph --- *)
-
-Options[ BlowUpGraph ] = {
-	"Connectivity" -> "Full",
-	"PreserveGraphDistance" -> False
-};
-
-BlowUpGraph[ graph_Graph, blowupRules_Association, opts : OptionsPattern[ ] ] :=
-	Module[
-		{ connectivity, preserveDistance, isDirected, gDim, normalizeDim, processVertex,
-		  processEdge, vertexData, vertexMapping, vertexCoords, vertexLabels,
-		  vertexOrigins, vertexDistances, subEdges, originalEdges, newEdges, edgeLabels },
-
-		connectivity = OptionValue[ "Connectivity" ];
-		preserveDistance = OptionValue[ "PreserveGraphDistance" ];
-		isDirected = DirectedGraphQ[ graph ];
-
-		gDim = Module[ { sampleCoord },
-			sampleCoord = AnnotationValue[ { graph, First[ VertexList[ graph ] ] }, VertexCoordinates ];
-			If[ MissingQ[ sampleCoord ], 3, Length[ sampleCoord ] ]
-		];
-
-		normalizeDim = { coord, targetDim } |-> If[ MissingQ[ coord ],
-			ConstantArray[ 0, targetDim ],
-			Which[
-				Length[ coord ] == targetDim, coord,
-				Length[ coord ] < targetDim, PadRight[ coord, targetDim, 0 ],
-				True, Take[ coord, targetDim ]
-			]
-		];
-
-		processVertex = { state, vertex } |-> If[ KeyExistsQ[ blowupRules, vertex ],
-			Module[
-				{ blowup, subgraph, rootVertex, scale, subVertices, origCoord, subCoords,
-				  hasSubCoords, rootCoord, subLabels, nextID, mapping, coords, labels },
-
-				blowup = blowupRules[ vertex ];
-				subgraph = blowup[ "Subgraph" ];
-				rootVertex = blowup[ "Root" ];
-				scale = Lookup[ blowup, "Scale", 1.0 ];
-				subVertices = VertexList[ subgraph ];
-				hasSubCoords = !MissingQ[ AnnotationValue[ { subgraph, First[ subVertices ] }, VertexCoordinates ] ];
-
-				subCoords = If[ hasSubCoords,
-					AssociationThread[ subVertices, normalizeDim[ AnnotationValue[ { subgraph, # }, VertexCoordinates ], gDim ] & /@ subVertices ],
-					Module[ { numPoints, positions },
-						origCoord = normalizeDim[ AnnotationValue[ { graph, vertex }, VertexCoordinates ], gDim ];
-						numPoints = Length[ subVertices ];
-						positions = If[ numPoints == 1,
-							{ origCoord },
-							Which[
-								gDim == 2,
-									Table[ origCoord + scale * { Cos[ 2 Pi i / numPoints ], Sin[ 2 Pi i / numPoints ] }, { i, 0, numPoints - 1 } ],
-								gDim == 3,
-									Module[ { phi, theta },
-										Table[
-											phi = Pi * ( 3 - Sqrt[ 5 ] ) * i;
-											theta = ArcCos[ 1 - 2 ( i + 0.5 ) / numPoints ];
-											origCoord + scale * { Sin[ theta ] Cos[ phi ], Sin[ theta ] Sin[ phi ], Cos[ theta ] },
-											{ i, 0, numPoints - 1 }
-										]
-									],
-								True,
-									Table[ origCoord + scale * RandomReal[ { -1, 1 }, gDim ], { numPoints } ]
-							]
-						];
-						AssociationThread[ subVertices, positions ]
-					]
-				];
-
-				rootCoord = Lookup[ subCoords, rootVertex, ConstantArray[ 0, gDim ] ];
-				subLabels = AssociationThread[ subVertices, AnnotationValue[ { subgraph, # }, VertexLabels ] & /@ subVertices ];
-				nextID = state[ "nextID" ];
-				mapping = AssociationThread[ subVertices, Table[ If[ sv === rootVertex, vertex, nextID++ ], { sv, subVertices } ] ];
-				coords = Association @ Table[ mapping[ sv ] -> subCoords[ sv ], { sv, subVertices } ];
-				labels = Association @ KeyValueMap[ #1 -> #2 &, KeySelect[ AssociationThread[ mapping /@ subVertices, subLabels /@ subVertices ], !MissingQ ] ];
-
-				<|
-					"nextID" -> nextID,
-					"mapping" -> Join[ state[ "mapping" ], mapping ],
-					"coords" -> Join[ state[ "coords" ], coords ],
-					"labels" -> Join[ state[ "labels" ], labels ],
-					"origins" -> Join[ state[ "origins" ], AssociationThread[ Values[ mapping ], vertex ] ],
-					"subEdges" -> Join[ state[ "subEdges" ], { vertex -> EdgeList[ subgraph ] } ]
-				|>
-			],
-			Module[ { origCoord, origLabel },
-				origCoord = AnnotationValue[ { graph, vertex }, VertexCoordinates ];
-				origLabel = AnnotationValue[ { graph, vertex }, VertexLabels ];
-				<|
-					"nextID" -> state[ "nextID" ],
-					"mapping" -> Join[ state[ "mapping" ], <| vertex -> vertex |> ],
-					"coords" -> If[ MissingQ[ origCoord ], state[ "coords" ], Join[ state[ "coords" ], <| vertex -> origCoord |> ] ],
-					"labels" -> If[ MissingQ[ origLabel ], state[ "labels" ], Join[ state[ "labels" ], <| vertex -> origLabel |> ] ],
-					"origins" -> Join[ state[ "origins" ], <| vertex -> vertex |> ],
-					"subEdges" -> state[ "subEdges" ]
-				|>
-			]
-		];
-
-		vertexData = Fold[ processVertex,
-			<| "nextID" -> Max[ VertexList[ graph ] ] + 1, "mapping" -> <| |>, "coords" -> <| |>, "labels" -> <| |>, "origins" -> <| |>, "subEdges" -> <| |> |>,
-			VertexList[ graph ]
-		];
-
-		vertexMapping = vertexData[ "mapping" ];
-		vertexCoords = vertexData[ "coords" ];
-		vertexLabels = vertexData[ "labels" ];
-		vertexOrigins = vertexData[ "origins" ];
-
-		vertexDistances = If[ preserveDistance,
-			Association @ Flatten @ KeyValueMap[
-				{ origV, layer } |-> Module[ { subgraph, rootVertex, distances },
-					If[ KeyExistsQ[ blowupRules, origV ],
-						subgraph = blowupRules[ origV ][ "Subgraph" ];
-						rootVertex = blowupRules[ origV ][ "Root" ];
-						distances = GraphDistance[ subgraph, rootVertex, # ] & /@ VertexList[ subgraph ];
-						Thread[ ( vertexMapping /@ VertexList[ subgraph ] ) -> distances ],
-						{ vertexMapping[ origV ] -> 0 }
-					]
-				],
-				vertexData[ "mapping" ]
-			],
-			<| |>
-		];
-
-		subEdges = Flatten @ KeyValueMap[
-			{ vertex, edges } |-> Map[
-				edge |-> Module[ { fromV, toV, edgeConstructor },
-					{ fromV, toV } = If[ DirectedGraphQ[ blowupRules[ vertex ][ "Subgraph" ] ], { edge[[ 1 ]], edge[[ 2 ]] }, List @@ edge ];
-					edgeConstructor = If[ DirectedGraphQ[ blowupRules[ vertex ][ "Subgraph" ] ], DirectedEdge, UndirectedEdge ];
-					edgeConstructor[ vertexMapping[ fromV ], vertexMapping[ toV ] ] -> AnnotationValue[ { blowupRules[ vertex ][ "Subgraph" ], edge }, EdgeLabels ]
-				],
-				edges
-			],
-			vertexData[ "subEdges" ]
-		];
-
-		processEdge = edge |-> Module[
-			{ fromV, toV, fromLayer, toLayer, connectivityFactor, newEdgeSet, label },
-
-			{ fromV, toV } = If[ isDirected, { edge[[ 1 ]], edge[[ 2 ]] }, List @@ edge ];
-			fromLayer = If[ KeyExistsQ[ blowupRules, fromV ], Values[ KeySelect[ vertexMapping, MemberQ[ VertexList[ blowupRules[ fromV ][ "Subgraph" ] ], # ] & ] ], { fromV } ];
-			toLayer = If[ KeyExistsQ[ blowupRules, toV ], Values[ KeySelect[ vertexMapping, MemberQ[ VertexList[ blowupRules[ toV ][ "Subgraph" ] ], # ] & ] ], { toV } ];
-			connectivityFactor = Switch[ connectivity, "Full", 1.0, "Low", 0.3, "Medium", 0.6, "High", 0.9, _, 1.0 ];
-			label = AnnotationValue[ { graph, edge }, EdgeLabels ];
-
-			newEdgeSet = If[ preserveDistance,
-				Flatten[ Table[
-					Module[ { fDist, candidates },
-						fDist = Lookup[ vertexDistances, fv, 0 ];
-						candidates = Select[ toLayer, Lookup[ vertexDistances, #, 0 ] == fDist & ];
-						If[ Length[ candidates ] > 0,
-							If[ connectivity === "Full",
-								If[ isDirected, DirectedEdge, UndirectedEdge ][ fv, # ] & /@ candidates,
-								{ If[ isDirected, DirectedEdge, UndirectedEdge ][ fv, RandomChoice[ candidates ] ] }
-							],
-							{ }
-						]
-					],
-					{ fv, fromLayer }
-				] ],
-				If[ connectivity === "Full",
-					Flatten[ Outer[ If[ isDirected, DirectedEdge, UndirectedEdge ], fromLayer, toLayer, 1 ] ],
-					Join[
-						Table[ If[ isDirected, DirectedEdge, UndirectedEdge ][ fromLayer[[ Mod[ i - 1, Length[ fromLayer ] ] + 1 ]], toLayer[[ i ]] ], { i, Length[ toLayer ] } ],
-						DeleteDuplicates[ Table[ If[ isDirected, DirectedEdge, UndirectedEdge ][ RandomChoice[ fromLayer ], RandomChoice[ toLayer ] ], { Round[ connectivityFactor * Length[ fromLayer ] * Length[ toLayer ] ] } ] ]
-					]
-				]
-			];
-			Thread[ newEdgeSet -> If[ MissingQ[ label ], Missing[ ], label ] ]
-		];
-
-		originalEdges = Flatten[ processEdge /@ EdgeList[ graph ], 1 ];
-		newEdges = Join[ subEdges, originalEdges ];
-		edgeLabels = Association @ Select[ newEdges, !MissingQ[ #[[ 2 ]] ] & ];
-
-		Graph[ Keys[ vertexCoords ], Keys[ newEdges ],
-			DirectedEdges -> isDirected,
-			VertexCoordinates -> Normal[ vertexCoords ],
-			VertexLabels -> Normal[ vertexLabels ],
-			EdgeLabels -> Normal[ edgeLabels ],
-			AnnotationRules -> Table[ vertex -> { "Origin" -> vertexOrigins[ vertex ] }, { vertex, Keys[ vertexOrigins ] } ],
-			VertexSize -> Medium,
-			EdgeStyle -> Directive[ Arrowheads[ 0.02 ] ]
-		]
-	]
-
-(* --- ContractGraph --- *)
-
-ContractGraph[ graph_Graph ] :=
-	Module[
-		{ vertices, origins, originalVertices, labels, isDirected,
-		  contractedCoords, contractedLabels, contractedEdges },
-
+GraphBlowUp[ graph_Graph, n_Integer ] :=
+	Module[ { vertices, fiberVertices, fiberEdges },
 		vertices = VertexList[ graph ];
-		origins = Association @ Table[ vertex -> AnnotationValue[ graph, vertex, "Origin" ], { vertex, vertices } ];
+		fiberVertices = Flatten[ Table[ { v, i }, { v, vertices }, { i, n } ], 1 ];
+		fiberEdges = Flatten[
+			Table[ DirectedEdge[ { u, i }, { v, j } ], { DirectedEdge[ u, v ], EdgeList[ graph ] }, { i, n }, { j, n } ],
+			2
+		];
+		Graph[ fiberVertices, fiberEdges,
+			AnnotationRules -> Flatten @ Table[ { v, i } -> { "Origin" -> v }, { v, vertices }, { i, n } ]
+		]
+	]
+
+GraphBlowUp[ graph_Graph, fiberSizes_Association ] :=
+	Module[ { vertices, fiberVertices, fiberEdges },
+		vertices = VertexList[ graph ];
+		fiberVertices = Flatten[ Table[ { v, i }, { v, vertices }, { i, Lookup[ fiberSizes, v, 1 ] } ], 1 ];
+		fiberEdges = Flatten[
+			Table[
+				DirectedEdge[ { u, i }, { v, j } ],
+				{ DirectedEdge[ u, v ], EdgeList[ graph ] },
+				{ i, Lookup[ fiberSizes, u, 1 ] },
+				{ j, Lookup[ fiberSizes, v, 1 ] }
+			],
+			2
+		];
+		Graph[ fiberVertices, fiberEdges,
+			AnnotationRules -> Flatten @ Table[ { v, i } -> { "Origin" -> v }, { v, vertices }, { i, Lookup[ fiberSizes, v, 1 ] } ]
+		]
+	]
+
+GraphBlowUp[ graph_Graph, n_Integer, f_Association ] :=
+	Module[ { bg, diffused },
+		bg = GraphBlowUp[ graph, n ];
+		diffused = Association @ Flatten @ Table[
+			Table[ { v, i } -> Lookup[ f, v, 0 ] / n, { i, n } ],
+			{ v, VertexList[ graph ] }
+		];
+		<| "Graph" -> bg, "Values" -> diffused |>
+	]
+
+GraphBlowUp[ graph_Graph, fiberSizes_Association, f_Association ] :=
+	Module[ { bg, diffused },
+		bg = GraphBlowUp[ graph, fiberSizes ];
+		diffused = Association @ Flatten @ Table[
+			With[ { n = Lookup[ fiberSizes, v, 1 ] },
+				Table[ { v, i } -> Lookup[ f, v, 0 ] / n, { i, n } ]
+			],
+			{ v, VertexList[ graph ] }
+		];
+		<| "Graph" -> bg, "Values" -> diffused |>
+	]
+
+
+(* --- GraphContract --- *)
+
+GraphContract[ graph_Graph ] :=
+	Module[ { vertices, origins, originalVertices, contractedEdges },
+		vertices = VertexList[ graph ];
+		origins = AssociationMap[ v |-> AnnotationValue[ { graph, v }, "Origin" ], vertices ];
 		originalVertices = DeleteDuplicates @ Values[ origins ];
-		isDirected = DirectedGraphQ[ graph ];
-
-		contractedCoords = Association @ Table[
-			ov -> Mean[ Keys[ Select[ origins, # == ov & ] ] /. Thread[ vertices -> ( AnnotationValue[ { graph, # }, VertexCoordinates ] & /@ vertices ) ] ],
-			{ ov, originalVertices }
-		];
-
-		labels = Association @ Table[ vertex -> AnnotationValue[ { graph, vertex }, VertexLabels ], { vertex, vertices } ];
-		contractedLabels = Association @ Table[
-			ov -> Total @ Values[ Select[ labels, !MissingQ[ # ] &, KeySelect[ origins, # == ov & ] ] ],
-			{ ov, originalVertices }
-		];
-
 		contractedEdges = DeleteDuplicates @ Map[
-			edge |-> Module[ { fromV, toV, fromOrigin, toOrigin },
-				{ fromV, toV } = If[ isDirected, { edge[[ 1 ]], edge[[ 2 ]] }, List @@ edge ];
-				fromOrigin = origins[ fromV ];
-				toOrigin = origins[ toV ];
-				If[ fromOrigin =!= toOrigin,
-					If[ isDirected, DirectedEdge[ fromOrigin, toOrigin ], UndirectedEdge[ fromOrigin, toOrigin ] ],
-					Nothing
-				]
+			edge |-> With[ { ou = origins[ edge[[ 1 ]] ], ov = origins[ edge[[ 2 ]] ] },
+				If[ ou =!= ov, edge[[ 0 ]][ ou, ov ], Nothing ]
 			],
 			EdgeList[ graph ]
 		];
+		Graph[ originalVertices, contractedEdges ]
+	]
 
-		Graph[ originalVertices, contractedEdges,
-			DirectedEdges -> isDirected,
-			VertexCoordinates -> Normal[ contractedCoords ],
-			VertexLabels -> Normal[ contractedLabels ]
-		]
+GraphContract[ graph_Graph, f_Association ] :=
+	Module[ { vertices, origins, originGroups, contractedValues },
+		vertices = VertexList[ graph ];
+		origins = AssociationMap[ v |-> AnnotationValue[ { graph, v }, "Origin" ], vertices ];
+		originGroups = GroupBy[ Normal[ origins ], Last -> First ];
+		contractedValues = Map[ Total[ Lookup[ f, #, 0 ] & /@ # ] &, originGroups ];
+		<| "Graph" -> GraphContract[ graph ], "Values" -> contractedValues |>
 	]

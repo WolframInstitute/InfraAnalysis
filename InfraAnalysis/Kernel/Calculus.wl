@@ -3,10 +3,6 @@ Package["WolframInstitute`InfraAnalysis`"]
 PackageExport[GraphIntegrate]
 PackageExport[GraphDerivative]
 PackageExport[GraphIntegral]
-PackageExport[GraphMobiusFunction]
-PackageExport[GraphZetaConvolution]
-PackageExport[GraphMobiusInversion]
-PackageExport[GraphFundamentalTheorem]
 
 PackageScope[GraphIntegrateValues]
 PackageScope[GraphDerivativeValues]
@@ -39,19 +35,6 @@ GraphDerivative[ graph_Graph, opts : OptionsPattern[] ] :=
 	GraphDerivative[ graph, ExtractVertexValues[ graph ], opts ]
 
 
-Options[ GraphFundamentalTheorem ] = { Method -> All };
-
-GraphFundamentalTheorem[ graph_Graph, f_Association, opts : OptionsPattern[] ] :=
-	Module[ { methods, results },
-		methods = Flatten @ { Replace[ OptionValue[ Method ], All -> { "Ordered", "Cumulative", "Conservative", "Laminar" } ] };
-		results = AssociationMap[
-			m |-> GraphDerivativeValues[ graph, GraphIntegrateValues[ graph, f, m ], m, None, 1 ] === f,
-			methods
-		];
-		If[ Length[ methods ] == 1, First[ results ], results ]
-	]
-
-
 GraphIntegral[ graph_Graph, f_Association, vertex_ ] :=
 	Total @ Lookup[ f, VertexInComponent[ graph, { vertex }, Infinity ] ]
 
@@ -62,15 +45,42 @@ GraphIntegral[ graph_Graph, f_Association, sources_List ] :=
 	GraphIntegral[ graph, f, sources, GraphSinks[ graph ] ]
 
 
-GraphMobiusFunction[ graph_Graph ] :=
-	Module[ { ordering, n, successorSets, predecessorSets, mobius },
+GraphIntegrateValues[ graph_Graph, f_Association, method_String ] :=
+	Switch[ method,
+		"Ordered",      orderedIntegration[ graph, f ],
+		"Cumulative",   cumulativeIntegration[ graph, f ],
+		"Conservative", conservativeIntegration[ graph, f ],
+		"Laminar",      laminarIntegration[ graph, f ],
+		_,              orderedIntegration[ graph, f ]
+	]
+
+GraphDerivativeValues[ graph_Graph, f_Association, method_String, vectorField_ : None, weight_ : 1 ] :=
+	Switch[ method,
+		"Ordered",      orderedDerivative[ graph, f ],
+		"Cumulative",   GraphFiniteDifference[ graph, f ],
+		"Conservative", conservativeDerivative[ graph, f ],
+		"Laminar",      laminarDerivative[ graph, f ],
+		"Directional",  GraphDirectionalDifference[ graph, vectorField, f ],
+		"Weighted",     GraphWeightedDerivation[ graph, vectorField, f, weight ],
+		_,              orderedDerivative[ graph, f ]
+	]
+
+
+orderedIntegration[ graph_Graph, f_Association ] :=
+	AssociationMap[
+		vertex |-> Total[ Lookup[ f, #, 0 ] & /@ VertexInComponent[ graph, vertex ] ],
+		VertexList[ graph ]
+	]
+
+orderedDerivative[ graph_Graph, f_Association ] :=
+	Module[ { ordering, n, successors, predecessors, mobius },
 		ordering = TopologicalSort[ graph ];
 		n = Length[ ordering ];
-		successorSets = AssociationMap[
+		successors = AssociationMap[
 			v |-> Association[ Thread[ VertexOutComponent[ graph, v ] -> True ] ],
 			ordering
 		];
-		predecessorSets = AssociationMap[
+		predecessors = AssociationMap[
 			v |-> Association[ Thread[ VertexInComponent[ graph, v ] -> True ] ],
 			ordering
 		];
@@ -80,11 +90,11 @@ GraphMobiusFunction[ graph_Graph ] :=
 				mobius[ { vi, vi } ] = 1;
 				Do[
 					With[ { vj = ordering[[ j ]] },
-						If[ TrueQ @ successorSets[ vi ][ vj ],
+						If[ TrueQ @ successors[ vi ][ vj ],
 							mobius[ { vi, vj } ] = -Total[
 								Lookup[ mobius, Key[ { vi, # } ], 0 ] & /@
-									Select[ Keys @ predecessorSets[ vj ],
-										z |-> z =!= vj && TrueQ @ successorSets[ vi ][ z ]
+									Select[ Keys @ predecessors[ vj ],
+										z |-> z =!= vj && TrueQ @ successors[ vi ][ z ]
 									]
 							]
 						]
@@ -94,44 +104,13 @@ GraphMobiusFunction[ graph_Graph ] :=
 			],
 			{ i, n }
 		];
-		mobius
-	]
-
-GraphZetaConvolution[ graph_Graph, f_Association ] :=
-	AssociationMap[
-		vertex |-> Total[ Lookup[ f, #, 0 ] & /@ VertexInComponent[ graph, vertex ] ],
-		VertexList[ graph ]
-	]
-
-GraphMobiusInversion[ graph_Graph, f_Association ] :=
-	Module[ { mobius, vertices },
-		mobius = GraphMobiusFunction[ graph ];
-		vertices = VertexList[ graph ];
 		AssociationMap[
-			vertex |-> Total[ ( Lookup[ mobius, Key[ { #, vertex } ], 0 ] * Lookup[ f, #, 0 ] ) & /@ VertexInComponent[ graph, vertex ] ],
-			vertices
+			vertex |-> Total[
+				( Lookup[ mobius, Key[ { #, vertex } ], 0 ] * Lookup[ f, #, 0 ] ) & /@
+					VertexInComponent[ graph, vertex ]
+			],
+			VertexList[ graph ]
 		]
-	]
-
-
-GraphIntegrateValues[ graph_Graph, f_Association, method_String ] :=
-	Switch[ method,
-		"Ordered",      GraphZetaConvolution[ graph, f ],
-		"Cumulative",   cumulativeIntegration[ graph, f ],
-		"Conservative", conservativeIntegration[ graph, f ],
-		"Laminar",      laminarIntegration[ graph, f ],
-		_,              GraphZetaConvolution[ graph, f ]
-	]
-
-GraphDerivativeValues[ graph_Graph, f_Association, method_String, vectorField_ : None, weight_ : 1 ] :=
-	Switch[ method,
-		"Ordered",      GraphMobiusInversion[ graph, f ],
-		"Cumulative",   GraphFiniteDifference[ graph, f ],
-		"Conservative", conservativeDerivative[ graph, f ],
-		"Laminar",      laminarDerivative[ graph, f ],
-		"Directional",  GraphDirectionalDifference[ graph, vectorField, f ],
-		"Weighted",     GraphWeightedDerivation[ graph, vectorField, f, weight ],
-		_,              GraphMobiusInversion[ graph, f ]
 	]
 
 

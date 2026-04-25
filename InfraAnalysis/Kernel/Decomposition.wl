@@ -1,7 +1,6 @@
 Package["WolframInstitute`InfraAnalysis`"]
 
 PackageExport[LaminarDecomposition]
-PackageExport[LayerDAGBySources]
 
 
 Options[ LaminarDecomposition ] = {
@@ -38,16 +37,4 @@ LaminarDecomposition[ graph_Graph, opts : OptionsPattern[ ] ] :=
 				Graph[ Catenate @ vertices, Flatten[ Values @ KeySelect[ edges, First @ # != Last @ # & ], 1 ] ]
 			]
 		]
-	]
-
-LayerDAGBySources[ graph_Graph ] :=
-	Module[
-		{ sources, distances },
-		sources = GraphSources[ graph ];
-		If[ Length[ sources ] == 0, Return[ <| 0 -> VertexList[ graph ] |> ] ];
-		distances = Association @ Map[
-			vertex |-> vertex -> Min[ GraphDistance[ graph, #, vertex ] & /@ sources ],
-			VertexList[ graph ]
-		];
-		GroupBy[ Normal[ distances ], Last -> First ]
 	]

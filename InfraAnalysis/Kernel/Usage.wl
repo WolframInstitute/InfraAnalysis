@@ -14,45 +14,27 @@ ConeGraph::usage =
 
 
 LaminarDecomposition::usage =
-	"LaminarDecomposition[g] decomposes a directed graph into radial and laminar subgraphs.";
-
-LayerDAGBySources::usage =
-	"LayerDAGBySources[g] layers a DAG by minimal distance from sources.";
+	"LaminarDecomposition[g] decomposes a directed graph into laminar layers (a DAG of layers plus per-layer subgraphs).";
 
 
 RadialExpansion::usage =
-	"RadialExpansion[g, layers] adds concentric radial layers to a graph.";
+	"RadialExpansion[g, layers] grows g by appending concentric vertex rings outside the sources; layers is a list of ring sizes."
 
-RadialBlowUp::usage =
-	"RadialBlowUp[g, layerCounts] organizes a DAG into concentric layers with edges toward sinks.";
+GraphBlowUp::usage =
+	"GraphBlowUp[g, n] replaces each vertex v with a fiber of n copies {v,1}..{v,n} and each edge u->v with the complete bipartite K_{n,n}. GraphBlowUp[g, n, f] also diffuses f uniformly across each fiber, returning <|\"Graph\" -> ..., \"Values\" -> ...|>. Use an Association for n to specify per-vertex fiber sizes.";
 
-BlowUpGraph::usage =
-	"BlowUpGraph[g, rules] blows up vertices according to subgraph replacement rules.";
-
-ContractGraph::usage =
-	"ContractGraph[g] contracts a blown-up graph back to the original vertices.";
+GraphContract::usage =
+	"GraphContract[g] collapses a blown-up graph back to original vertices (using Origin annotations). GraphContract[g, f] also sums f over each fiber, returning <|\"Graph\" -> ..., \"Values\" -> ...|>.";
 
 
 GraphIntegrate::usage =
-	"GraphIntegrate[g, f] returns g annotated with the integral of f.";
+	"GraphIntegrate[g, f] returns g annotated with the integral of f. Method -> \"Ordered\" | \"Cumulative\" | \"Conservative\" | \"Laminar\".";
 
 GraphDerivative::usage =
-	"GraphDerivative[g, f] returns g annotated with the derivative of f.";
+	"GraphDerivative[g, f] returns g annotated with the derivative of f. Method -> \"Ordered\" | \"Cumulative\" | \"Conservative\" | \"Laminar\" | \"Directional\" | \"Weighted\".";
 
 GraphIntegral::usage =
-	"GraphIntegral[g, f, v] returns the total of f over predecessors of v.";
-
-GraphMobiusFunction::usage =
-	"GraphMobiusFunction[g] returns the Moebius function of the DAG partial order as an association on vertex pairs.";
-
-GraphZetaConvolution::usage =
-	"GraphZetaConvolution[g, f] returns the sum of f over predecessors of each vertex.";
-
-GraphMobiusInversion::usage =
-	"GraphMobiusInversion[g, f] returns the Moebius inversion of f on the DAG partial order.";
-
-GraphFundamentalTheorem::usage =
-	"GraphFundamentalTheorem[g, f] verifies that derivative inverts integration; Method -> m restricts to a single method.";
+	"GraphIntegral[g, f, v] returns the total of f over all predecessors of v. GraphIntegral[g, f, sources, sinks] integrates over the subdag between sources and sinks.";
 
 
 GraphVectorFieldQ::usage =
