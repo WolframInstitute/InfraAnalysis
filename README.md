@@ -27,10 +27,14 @@ Our goals include:
 
 ## ✨ Usage
 
+Install from the Wolfram Cloud:
+
 ```wolfram
 PacletInstall["https://www.wolframcloud.com/obj/hajek_pavel/InfraAnalysis.paclet", ForceVersionInstall -> True]
 Needs["WolframInstitute`InfraAnalysis`"]
 ```
+
+Explore the paclet in the **[LLM-generated presentation notebook](https://www.wolframcloud.com/obj/hajek_pavel/InfraAnalysis/Presentation.nb)** (runs on the Wolfram Cloud).
 
 ## ⚖️ License
 
