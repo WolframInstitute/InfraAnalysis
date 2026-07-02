@@ -1,7 +1,19 @@
-# 📐 InfraAnalysis
+# ∫ InfraAnalysis
 
-This repository contains experimental code for exploring mathematical analysis on graphs, in particular for developing a discrete theory of calculus. Integration is about directional accumulation, and differentiation measures its rate of change. It has traditionally been developed on the real line, which is a macro-observer's idealization. We consider a DAG to be the natural generalization of the concept of directional accumulation. This leads to various versions of integrals, depending on how branching is handled, and to corresponding derivatives satisfying the fundamental theorem. We connect this with orthogonal coordinatizationsk, introduce partial derivatives, and develop multivariate calculus. We study natural blow-ups and contractions of DAGs that commute with integration and differentiation and thus give rise to renormalization.
-We also want to ask the dual question: to what extent is the graph represented by dual structures related to function spaces, i.e. the algebraic dual of the graph? This connects to the conversion between various notions of differential forms — on k-tuples of edges or as cochains — and the tangent space, possibly using sheaves.
+> ⚠️ **Actively developed, experimental research code.** It undergoes frequent cleanings and refactors, and the API may change without notice.
+
+This repository contains experimental code for studying a foundational theory of calculus on graphs — one that recovers ordinary continuous calculus as an effective theory as the size of the graph and the scale increase.
+The concrete idea is to view the real line as an idealization of a DAG, and integration as an idealization of accumulation.
+It turns out there are various versions of accumulation on a DAG, depending on how branching is handled; the corresponding derivative for which the fundamental theorem holds may then be local or non-local.
+
+By using our method of orthogonal coordinatization along orthogonal DAGs as axes, we introduce partial derivatives and develop multivariate calculus.
+
+We study renormalization by considering natural blow-ups and contractions of DAGs that commute with integration and differentiation.
+
+We also consider the dual approach via function spaces, and ask for an algebraic dual of a graph.
+This leads to sheaf-theoretic and algebraic-geometry-like approaches.
+
+## 🎯 Goals
 
 Our goals include:
 
@@ -10,16 +22,16 @@ Our goals include:
 - studying how blow-up and contraction interact with the calculus constructions
 - coordinatizing graphs via axes and shortest-path projections and defining partial derivatives
 - formulating and proving a discrete Gauss theorem on coordinatized graphs
-- developing the duality approach via function spaces and the algebraic dual of the graph
-- converting between differential forms on k-tuples of edges or cochains and the tangent space, using sheaves
+- studying properties of function spaces on graphs and the operator algebras on them, and defining the algebraic dual of the graph
+- studying dependence on coordinates, differential forms, and the Stokes theorem
 
 ## ✨ Usage
 
 ```wolfram
-PacletDirectoryLoad["/path/to/InfraAnalysis/InfraAnalysis"]
+PacletInstall["https://www.wolframcloud.com/obj/hajek_pavel/InfraAnalysis.paclet", ForceVersionInstall -> True]
 Needs["WolframInstitute`InfraAnalysis`"]
 ```
 
-## ∴ License
+## ⚖️ License
 
 MIT

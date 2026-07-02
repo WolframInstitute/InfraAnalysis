@@ -3,7 +3,7 @@ PacletObject[
     "Name" -> "WolframInstitute/InfraAnalysis",
     "Description" -> "Analysis on directed graphs: integration, derivative, coordinatization, and renormalization",
     "Creator" -> "Pavel Hajek",
-    "Version" -> "1.0.0",
+    "Version" -> "1.0.1",
     "WolframVersion" -> "14.0+",
     "PublisherID" -> "WolframInstitute",
     "License" -> "MIT",
