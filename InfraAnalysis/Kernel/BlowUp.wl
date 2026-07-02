@@ -41,7 +41,7 @@ GraphBlowUp[ graph_Graph, n_Integer ] :=
 		vertices = VertexList[ graph ];
 		fiberVertices = Flatten[ Table[ { v, i }, { v, vertices }, { i, n } ], 1 ];
 		fiberEdges = Flatten[
-			Table[ DirectedEdge[ { u, i }, { v, j } ], { DirectedEdge[ u, v ], EdgeList[ graph ] }, { i, n }, { j, n } ],
+			Table[ DirectedEdge[ { First[ edge ], i }, { Last[ edge ], j } ], { edge, EdgeList[ graph ] }, { i, n }, { j, n } ],
 			2
 		];
 		Graph[ fiberVertices, fiberEdges,
@@ -55,10 +55,10 @@ GraphBlowUp[ graph_Graph, fiberSizes_Association ] :=
 		fiberVertices = Flatten[ Table[ { v, i }, { v, vertices }, { i, Lookup[ fiberSizes, v, 1 ] } ], 1 ];
 		fiberEdges = Flatten[
 			Table[
-				DirectedEdge[ { u, i }, { v, j } ],
-				{ DirectedEdge[ u, v ], EdgeList[ graph ] },
-				{ i, Lookup[ fiberSizes, u, 1 ] },
-				{ j, Lookup[ fiberSizes, v, 1 ] }
+				DirectedEdge[ { First[ edge ], i }, { Last[ edge ], j } ],
+				{ edge, EdgeList[ graph ] },
+				{ i, Lookup[ fiberSizes, First[ edge ], 1 ] },
+				{ j, Lookup[ fiberSizes, Last[ edge ], 1 ] }
 			],
 			2
 		];
@@ -111,6 +111,6 @@ GraphContract[ graph_Graph, f_Association ] :=
 		vertices = VertexList[ graph ];
 		origins = AssociationMap[ v |-> AnnotationValue[ { graph, v }, "Origin" ], vertices ];
 		originGroups = GroupBy[ Normal[ origins ], Last -> First ];
-		contractedValues = Map[ Total[ Lookup[ f, #, 0 ] & /@ # ] &, originGroups ];
+		contractedValues = Map[ Total[ Lookup[ f, Key[ # ], 0 ] & /@ # ] &, originGroups ];
 		<| "Graph" -> GraphContract[ graph ], "Values" -> contractedValues |>
 	]

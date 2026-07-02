@@ -39,7 +39,7 @@ GraphIntegral[ graph_Graph, f_Association, vertex_ ] :=
 	Total @ Lookup[ f, VertexInComponent[ graph, { vertex }, Infinity ] ]
 
 GraphIntegral[ graph_Graph, f_Association, sources_List, sinks_List ] :=
-	Total @ Lookup[ f, VertexInComponent[ VertexOutComponent[ graph, sources, Infinity ], sinks, Infinity ] ]
+	Total @ Lookup[ f, Intersection[ VertexOutComponent[ graph, sources, Infinity ], VertexInComponent[ graph, sinks, Infinity ] ] ]
 
 GraphIntegral[ graph_Graph, f_Association, sources_List ] :=
 	GraphIntegral[ graph, f, sources, GraphSinks[ graph ] ]
