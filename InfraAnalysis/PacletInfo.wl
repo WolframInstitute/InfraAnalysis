@@ -14,11 +14,6 @@ PacletObject[
         "Kernel",
         "Root" -> "Kernel",
         "Context" -> {"WolframInstitute`InfraAnalysis`"}
-      },
-      {
-        "Tests",
-        "Method" -> "Experimental",
-        "Root" -> "Tests"
       }
     }
   |>
