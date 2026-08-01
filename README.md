@@ -1,6 +1,6 @@
-# ∫ InfraAnalysis
-
 > ⚠️ **Actively developed, experimental research code.** It undergoes frequent cleanings and refactors, and the API may change without notice.
+
+# ∫ InfraAnalysis
 
 This repository contains experimental code for studying a foundational theory of calculus on graphs — one that recovers ordinary continuous calculus as an effective theory as the size of the graph and the scale increase.
 The concrete idea is to view the real line as an idealization of a DAG, and integration as an idealization of accumulation.
@@ -37,6 +37,13 @@ Needs["WolframInstitute`InfraAnalysis`"]
 Explore the paclet in the **[LLM-generated presentation notebook](https://www.wolframcloud.com/obj/hajek_pavel/InfraAnalysis/Presentation.nb)** (runs on the Wolfram Cloud).
 
 Ready-made example substrates and ambient styles for the analyses: **[LLM-generated example-graphs notebook](https://www.wolframcloud.com/obj/hajek_pavel/ExampleGraphs.nb)** (runs on the Wolfram Cloud).
+
+## 📓 Research Notebooks
+
+> ⚠️ **LLM-generated theory from code.** These notebooks are written by an LLM directly from the repository using [ClaudePluginComputationalResearch](https://github.com/WolframInstitute/ClaudePluginComputationalResearch) as a demonstration of a new form of access to computational knowledge, where the source of truth lies in the code. They are **not revised by a human** by default.
+
+| Notebook | Description | Link | Revision By |
+|----------|-------------|------|-------------|
 
 ## ⚖️ License
 
